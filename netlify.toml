@@ -1,9 +1,13 @@
 [build]
-  command = "npm run build:verify"
+  base = "frontend"
+  command = "npm install --include=optional --no-audit --no-fund && npm run build:verify"
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20.19.0"
+  NETLIFY_SKIP_INSTALL = "true"
+  NPM_CONFIG_PACKAGE_LOCK = "false"
+  NPM_FLAGS = "--include=optional"
   VITE_API_URL = "https://s72-gaurav-capstone-kampuskart.onrender.com"
   VITE_SOCKET_URL = "https://s72-gaurav-capstone-kampuskart.onrender.com"
 
@@ -77,7 +81,7 @@
     Content-Type = "image/jpeg"
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Service worker must never be cached — browsers need to check for updates
+# Service worker must never be cached - browsers need to check for updates
 [[headers]]
   for = "/sw.js"
   [headers.values]

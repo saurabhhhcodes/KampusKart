@@ -94,14 +94,16 @@ export const EventDetail: React.FC<EventDetailProps> = ({ event, isAdmin, onEdit
           </div>
 
           {event.registerUrl && (
+            <div className="pt-2">
             <a
               href={event.registerUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className={`w-full ${UI_PATTERNS.buttonPrimary} text-center py-4 rounded-xl text-lg`}
+              className={`block w-full ${UI_PATTERNS.buttonPrimary} text-center py-4 rounded-xl text-lg`}
             >
               Register for this Event
             </a>
+            </div>
           )}
         </div>
       </div>

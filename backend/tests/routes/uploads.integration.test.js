@@ -1,8 +1,9 @@
 const request = require('supertest');
 const express = require('express');
-const mongoose = require('mongoose');
-const fs = require('fs');
 const path = require('path');
+const User = require('../../models/User');
+
+const TEST_USER_ID = '64b000000000000000000003';
 
 jest.mock('cloudinary', () => ({
   v2: {
@@ -19,24 +20,27 @@ jest.mock('cloudinary', () => ({
   }
 }));
 
-const profileRoutes = require('../../routes/profile');
-
 describe('Uploads integration routes', () => {
   let app;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     app = express();
-    // Provide Authorization header and mock User.findById used by authMiddleware
-    const userId = new mongoose.Types.ObjectId();
+    await User.deleteMany({ email: 'uploader@test.com' });
+    await User.create({
+      _id: TEST_USER_ID,
+      email: 'uploader@test.com',
+      name: 'Uploader',
+      password: 'Pass1234!'
+    });
+
     // Mock auth middleware before importing routes (use static user to keep mock factory pure)
     jest.mock('../../middleware/auth', () => ({
-      authMiddleware: (req, res, next) => { req.user = { _id: 'test-user', email: 'uploader@test' }; next(); },
+      authMiddleware: (req, res, next) => {
+        req.user = { _id: '64b000000000000000000003', email: 'uploader@test.com' };
+        next();
+      },
       requireAdmin: () => (req, res, next) => next()
     }));
-
-    const jwt = require('jsonwebtoken');
-    const token = jwt.sign({ userId: 'test-user' }, process.env.JWT_SECRET || 'test-secret-key');
-    app.use((req, res, next) => { req.headers.authorization = `Bearer ${token}`; next(); });
 
     const profileRoutes = require('../../routes/profile');
     app.use('/api/profile', profileRoutes);
