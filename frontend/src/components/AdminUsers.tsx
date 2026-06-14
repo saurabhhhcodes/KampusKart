@@ -23,6 +23,10 @@ type AdminUser = {
   dateOfBirth?: string | null;
   createdAt?: string;
   isAdmin?: boolean;
+  profilePicture?: {
+    url?: string;
+    public_id?: string;
+  };
 };
 
 type UserFormState = {
@@ -65,6 +69,9 @@ const AdminUsers = () => {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState<AdminUser | null>(null);
   const [formData, setFormData] = useState<UserFormState>(emptyForm);
+  const [sortBy, setSortBy] = useState('createdAt-asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   useEffect(() => {
     if (!loading && (!token || !user)) {
@@ -105,11 +112,38 @@ const AdminUsers = () => {
     return () => clearTimeout(timeoutId);
   }, [successMessage]);
 
-  const filteredUsers = users.filter((entry) => {
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortBy, itemsPerPage]);
+
+  const sortedUsers = [...users].sort((a, b) => {
+    if (sortBy === 'createdAt-asc') {
+      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    }
+    if (sortBy === 'createdAt-desc') {
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    }
+    if (sortBy === 'name-asc') {
+      return a.name.localeCompare(b.name);
+    }
+    if (sortBy === 'name-desc') {
+      return b.name.localeCompare(a.name);
+    }
+    return 0;
+  });
+
+  const filteredUsers = sortedUsers.filter((entry) => {
     const haystack =
       `${entry.name} ${entry.email} ${entry.phone ?? ''} ${entry.major ?? ''} ${entry.program ?? ''}`.toLowerCase();
     return haystack.includes(searchQuery.toLowerCase());
   });
+
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const openEditor = (entry: AdminUser) => {
     setSelectedUser(entry);
@@ -204,7 +238,7 @@ const AdminUsers = () => {
     <div className="min-h-screen bg-gradient-to-b from-white via-[#F4FDFB] to-white font-sans pt-24">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <div className="flex flex-col gap-6 mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
             <div>
               <p className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E6FFFA] text-[#007C6A] text-xs font-bold uppercase tracking-[0.18em] mb-4">
                 <FiShield className="w-3.5 h-3.5" /> Admin only
@@ -217,14 +251,29 @@ const AdminUsers = () => {
               </p>
             </div>
 
-            <div className="w-full lg:max-w-md relative">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search by name, email, or program"
-                className="w-full h-12 pl-11 pr-4 rounded-xl border-2 border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00C6A7]"
-              />
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:max-w-2xl">
+              <div className="relative flex-grow">
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search by name, email, or program..."
+                  className="w-full h-12 pl-11 pr-4 rounded-xl border-2 border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00C6A7]"
+                />
+              </div>
+
+              <div className="w-full sm:w-64">
+                <select
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value)}
+                  className="w-full h-12 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C6A7]"
+                >
+                  <option value="createdAt-asc">Oldest First (Default)</option>
+                  <option value="createdAt-desc">Newest First</option>
+                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-desc">Name (Z-A)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -242,16 +291,24 @@ const AdminUsers = () => {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
-              {filteredUsers.map((entry) => (
+              {paginatedUsers.map((entry) => (
                 <article
                   key={entry._id}
                   className="rounded-2xl border-2 border-gray-200 bg-white p-5 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#181818] text-white flex-shrink-0">
-                        <FiUser className="w-5 h-5" />
-                      </div>
+                      {entry.profilePicture?.url ? (
+                        <img
+                          src={entry.profilePicture.url}
+                          alt={entry.name}
+                          className="h-12 w-12 rounded-xl object-cover flex-shrink-0 border-2 border-gray-100"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#181818] text-white flex-shrink-0">
+                          <FiUser className="w-5 h-5" />
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <h2 className="text-base font-bold text-black truncate">{entry.name}</h2>
                         <p className="text-sm text-gray-500 truncate">{entry.email}</p>
@@ -304,6 +361,54 @@ const AdminUsers = () => {
                 </article>
               ))}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border-2 border-gray-200 shadow-sm text-sm">
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-500">Show</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="h-9 px-2.5 rounded-lg border-2 border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C6A7]"
+                  >
+                    <option value={10}>10 per page</option>
+                    <option value={12}>12 per page</option>
+                    <option value={24}>24 per page</option>
+                    <option value={48}>48 per page</option>
+                  </select>
+                  <span className="text-gray-500">
+                    of <strong className="text-black font-semibold">{totalItems}</strong> entries
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    className="h-10 px-4 rounded-xl border-2 border-gray-200 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-gray-500 px-2">
+                    Page <strong className="text-black font-semibold">{currentPage}</strong> of{' '}
+                    <strong className="text-black font-semibold">{totalPages}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    className="h-10 px-4 rounded-xl border-2 border-gray-200 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <aside className="sticky top-28 rounded-3xl border-2 border-gray-200 bg-white p-6 shadow-sm">
@@ -358,7 +463,7 @@ const AdminUsers = () => {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                       Year
-                      <input
+                      <select
                         value={formData.yearOfStudy}
                         onChange={(event) =>
                           setFormData((current) => ({
@@ -366,29 +471,54 @@ const AdminUsers = () => {
                             yearOfStudy: event.target.value,
                           }))
                         }
-                        className="h-11 rounded-xl border-2 border-gray-200 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C6A7]"
-                      />
+                        className="h-11 rounded-xl border-2 border-gray-200 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C6A7] bg-white"
+                      >
+                        <option value="">Not set</option>
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                        <option value="4th Year">4th Year</option>
+                        <option value="5th Year">5th Year</option>
+                        <option value="Graduate">Graduate</option>
+                      </select>
                     </label>
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                       Gender
-                      <input
+                      <select
                         value={formData.gender}
                         onChange={(event) =>
                           setFormData((current) => ({ ...current, gender: event.target.value }))
                         }
-                        className="h-11 rounded-xl border-2 border-gray-200 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C6A7]"
-                      />
+                        className="h-11 rounded-xl border-2 border-gray-200 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C6A7] bg-white"
+                      >
+                        <option value="">Not set</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
                     </label>
                   </div>
                   <label className="grid gap-2 text-sm font-medium text-gray-700">
                     Program
-                    <input
+                    <select
                       value={formData.program}
                       onChange={(event) =>
                         setFormData((current) => ({ ...current, program: event.target.value }))
                       }
-                      className="h-11 rounded-xl border-2 border-gray-200 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C6A7]"
-                    />
+                      className="h-11 rounded-xl border-2 border-gray-200 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C6A7] bg-white"
+                    >
+                      <option value="">Not set</option>
+                      <option value="B.Tech">B.Tech</option>
+                      <option value="M.Tech">M.Tech</option>
+                      <option value="MBA">MBA</option>
+                      <option value="BBA">BBA</option>
+                      <option value="B.Des">B.Des</option>
+                      <option value="M.Des">M.Des</option>
+                      <option value="BFA">BFA</option>
+                      <option value="B.Sc">B.Sc</option>
+                      <option value="M.Sc">M.Sc</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </label>
                   <label className="grid gap-2 text-sm font-medium text-gray-700">
                     Date of Birth

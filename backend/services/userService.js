@@ -29,7 +29,7 @@ const getAdminUsers = async () => {
   const users = await userRepository
     .findAll()
     .select('-password -resetPasswordOTP -resetPasswordExpires')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: 1 });
 
   return users.map(buildUserResponse);
 };
