@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import KampusKartNavbar from './components/KampusKartNavbar';
+import BackToTop from './components/common/BackToTop';
 
 // Lazy load all route components
 const Login = React.lazy(() => import('./pages/Login'));
@@ -216,6 +217,7 @@ const AppLayout: React.FC = () => {
           </Routes>
         </React.Suspense>
       </div>
+      {showNavbar && <BackToTop />}
     </div>
   );
 };
